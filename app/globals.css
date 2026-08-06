@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface-sunken: #f4f4f4;
+  --border: #e4e4e4;
+  --border-strong: #c8c8c8;
+  --text: #0a0a0a;
+  --text-muted: #6b6b6b;
+  --text-faint: #9a9a9a;
+  --ok: #15803d;
+  --warn: #a16207;
+  --err: #b91c1c;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 4px;
+    background: var(--text);
+    color: #fff;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #262626;
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--surface);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
