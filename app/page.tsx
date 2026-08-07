@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import CostPanel from "@/components/CostPanel";
 import DropZone from "@/components/DropZone";
+import LatencyPanel from "@/components/LatencyPanel";
 import LoginScreen from "@/components/LoginScreen";
 import PreflightLedger from "@/components/PreflightLedger";
 import ProgressHeader from "@/components/ProgressHeader";
@@ -251,6 +254,8 @@ export default function Page() {
 
   const results = batchState?.files ?? [];
   const hasLabels = manifest.rows.some((r) => r.expected !== null);
+  // Only used when a batch reports no measured durations — see buildCostReport.
+  const submittedBytes = (ledger?.toProcess ?? []).reduce((sum, f) => sum + f.size, 0);
   const activePipelineMode = (batchState?.pipeline_mode as PipelineMode | undefined) ?? "hybrid";
 
   if (authed === null) {
@@ -274,6 +279,12 @@ export default function Page() {
             </svg>
           </div>
           <h1 className="text-[24px] font-medium tracking-tight">Audio Analysis Batch Console</h1>
+          <Link
+            href="/methodology"
+            className="ml-auto text-[13px] text-[var(--text-muted)] hover:text-[var(--text)] whitespace-nowrap"
+          >
+            Methodology
+          </Link>
         </div>
         <p className="text-[13px] text-[var(--text-muted)] pl-[40px]">
           Upload a batch of call recordings, run analysis, and review structured results.
@@ -359,6 +370,22 @@ export default function Page() {
               <button type="button" className="btn-secondary" onClick={resetAll}>
                 Clear batch
               </button>
+            </div>
+          ) : null}
+
+          {view === "complete" && batchState ? (
+            <div className={`grid gap-6 ${activePipelineMode === "both" ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+              <CostPanel
+                batch={batchState}
+                pipelineMode={activePipelineMode}
+                configOptions={configOptions}
+                fallbackBytes={submittedBytes}
+              />
+              <LatencyPanel
+                batch={batchState}
+                pipelineMode={activePipelineMode}
+                fallbackBytes={submittedBytes}
+              />
             </div>
           ) : null}
 

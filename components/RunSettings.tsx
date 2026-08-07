@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import type { ConfigOptions } from "@/lib/types";
-
-// Duration isn't parsed client-side, so estimate audio length from file size —
-// ~1MB/min is a reasonable proxy for typical compressed call-recording audio.
-const BYTES_PER_MINUTE_ESTIMATE = 1024 * 1024;
+import { BYTES_PER_MINUTE_ESTIMATE } from "@/lib/cost";
 
 const PIPELINE_LABELS: Record<string, string> = {
   hybrid: "Hybrid (local + Gemini tone)",

@@ -142,6 +142,10 @@ function ScoringPanelBody({
           Confusion matrix — emotional tone
         </h3>
         <ConfusionMatrix matrix={scoring.confusionMatrix} labels={scoring.toneLabels} />
+        <p className="text-[12px] text-[var(--text-muted)] mt-2">
+          Computed from {scoring.scoredCount} labeled file{scoring.scoredCount === 1 ? "" : "s"}. Not a validation
+          result — see technical memo §4.
+        </p>
       </div>
         </>
       )}
