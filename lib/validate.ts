@@ -9,6 +9,7 @@ export interface LedgerEntry {
 
 export interface ProcessFile {
   name: string;
+  size: number;
   getBlob: () => Promise<Blob>;
 }
 
@@ -139,6 +140,7 @@ export function buildLedger(batch: ExtractedBatch, manifest: ParsedManifest): Le
 
   const toProcess: ProcessFile[] = Array.from(audioByName.values()).map((f) => ({
     name: f.basename,
+    size: f.size,
     getBlob: f.getBlob,
   }));
 

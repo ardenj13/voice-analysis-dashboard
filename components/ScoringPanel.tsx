@@ -1,26 +1,70 @@
 "use client";
 
-import type { FileResult, ManifestRow } from "@/lib/types";
-import { computeScoring } from "@/lib/scoring";
+import type { FileResult, ManifestRow, PipelineMode } from "@/lib/types";
+import { computeScoring, type ScoringResult } from "@/lib/scoring";
 import ConfusionMatrix from "./ConfusionMatrix";
 
-export default function ScoringPanel({ results, manifestRows }: { results: FileResult[]; manifestRows: ManifestRow[] }) {
-  const scoring = computeScoring(results, manifestRows);
+function meanFieldAccuracyPct(scoring: ScoringResult): number {
+  if (scoring.fieldAccuracy.length === 0) return 0;
+  return (scoring.fieldAccuracy.reduce((sum, f) => sum + f.pct, 0) / scoring.fieldAccuracy.length) * 100;
+}
+
+export default function ScoringPanel({
+  results,
+  manifestRows,
+  pipelineMode,
+}: {
+  results: FileResult[];
+  manifestRows: ManifestRow[];
+  pipelineMode: PipelineMode;
+}) {
+  if (pipelineMode === "both") {
+    const scoringHybrid = computeScoring(results, manifestRows, "hybrid_prediction");
+    const scoringLlmFull = computeScoring(results, manifestRows, "llm_full_prediction");
+    if (!scoringHybrid || !scoringLlmFull) return null;
+
+    return (
+      <section className="flex flex-col gap-4">
+        <p className="text-[13px] text-[var(--text-muted)] font-mono">
+          Scored on {scoringHybrid.scoredCount} files. Hybrid: {meanFieldAccuracyPct(scoringHybrid).toFixed(0)}% mean
+          field accuracy. Full LLM: {meanFieldAccuracyPct(scoringLlmFull).toFixed(0)}% mean field accuracy.
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ScoringPanelBody title="Hybrid" scoring={scoringHybrid} stackedInner />
+          <ScoringPanelBody title="Full LLM" scoring={scoringLlmFull} stackedInner />
+        </div>
+      </section>
+    );
+  }
+
+  const scoring = computeScoring(results, manifestRows, "prediction");
   if (!scoring) return null;
 
+  return <ScoringPanelBody title="Scoring" scoring={scoring} />;
+}
+
+function ScoringPanelBody({
+  title,
+  scoring,
+  stackedInner,
+}: {
+  title: string;
+  scoring: ScoringResult;
+  stackedInner?: boolean;
+}) {
   const unlabelled = scoring.totalWithResults - scoring.scoredCount;
 
   return (
     <section className="border border-[var(--border)] rounded-[4px] p-6 flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[16px] font-medium tracking-tight">Scoring</h2>
+        <h2 className="text-[16px] font-medium tracking-tight">{title}</h2>
         <p className="text-[12px] text-[var(--text-muted)] font-mono">
           Scored on {scoring.scoredCount} of {scoring.totalWithResults} files.
           {unlabelled > 0 ? ` ${unlabelled} file${unlabelled === 1 ? "" : "s"} had no label.` : ""}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 gap-6 ${stackedInner ? "" : "lg:grid-cols-2"}`}>
         <div>
           <h3 className="text-[12px] uppercase tracking-[0.08em] text-[var(--text-muted)] mb-2">Per-field accuracy</h3>
           <table className="w-full text-[14px] border-collapse">

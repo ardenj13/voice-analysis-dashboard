@@ -10,9 +10,10 @@ import ScoringPanel from "@/components/ScoringPanel";
 import { extractDataTransfer, extractFileList, extractZip, type ExtractedBatch } from "@/lib/archive";
 import { parseManifest, type ParsedManifest } from "@/lib/manifest";
 import { buildLedger, type LedgerModel } from "@/lib/validate";
-import { getBatch, submitBatch } from "@/lib/api";
+import { getBatch, getConfigOptions, submitBatch } from "@/lib/api";
 import { downloadResultsCsv, downloadResultsJson } from "@/lib/download";
-import type { BatchState, FileResult } from "@/lib/types";
+import type { BatchState, ConfigOptions, FileResult, PipelineMode } from "@/lib/types";
+import { modelLabel, pipelineShortLabel } from "@/components/RunSettings";
 
 type View = "empty" | "ledger" | "running" | "complete";
 
@@ -36,6 +37,10 @@ export default function Page() {
   const [reconnecting, setReconnecting] = useState(false);
   const [showResume, setShowResume] = useState(false);
   const [selectedResult, setSelectedResult] = useState<FileResult | null>(null);
+
+  const [configOptions, setConfigOptions] = useState<ConfigOptions | null>(null);
+  const [selectedPipelineMode, setSelectedPipelineMode] = useState("");
+  const [selectedGeminiModel, setSelectedGeminiModel] = useState("");
 
   const batchIdRef = useRef<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +97,18 @@ export default function Page() {
   useEffect(() => {
     schedulePollRef.current = schedulePoll;
   }, [schedulePoll]);
+
+  useEffect(() => {
+    getConfigOptions()
+      .then((opts) => {
+        setConfigOptions(opts);
+        setSelectedPipelineMode(opts.default_pipeline_mode);
+        setSelectedGeminiModel(opts.default_model);
+      })
+      .catch(() => {
+        // Run settings section stays hidden; submission falls back to empty selections.
+      });
+  }, []);
 
   const resetAll = useCallback(() => {
     stopPolling();
@@ -178,6 +195,8 @@ export default function Page() {
         archiveFile: archiveFile ?? undefined,
         files,
         manifestCsvText,
+        pipelineMode: selectedPipelineMode,
+        geminiModel: selectedGeminiModel,
       });
 
       batchIdRef.current = res.batch_id;
@@ -207,7 +226,7 @@ export default function Page() {
     } finally {
       setSubmitting(false);
     }
-  }, [ledger, sourceMode, archiveFile, manifestCsvText, schedulePoll]);
+  }, [ledger, sourceMode, archiveFile, manifestCsvText, selectedPipelineMode, selectedGeminiModel, schedulePoll]);
 
   const handleCancel = useCallback(() => {
     stopPolling();
@@ -225,6 +244,7 @@ export default function Page() {
 
   const results = batchState?.results ?? [];
   const hasLabels = manifest.rows.some((r) => r.expected !== null);
+  const activePipelineMode = (batchState?.pipeline_mode as PipelineMode | undefined) ?? "hybrid";
 
   return (
     <main className="max-w-[1200px] mx-auto px-8 py-12 flex flex-col gap-8">
@@ -259,15 +279,32 @@ export default function Page() {
       {view === "ledger" && ledger ? (
         <>
           {submitError ? <p className="text-[14px] text-[var(--err)]">Submit failed: {submitError}</p> : null}
-          <PreflightLedger ledger={ledger} onRun={handleRun} onClear={resetAll} submitting={submitting} />
+          <PreflightLedger
+            ledger={ledger}
+            onRun={handleRun}
+            onClear={resetAll}
+            submitting={submitting}
+            configOptions={configOptions}
+            pipelineMode={selectedPipelineMode}
+            onPipelineModeChange={setSelectedPipelineMode}
+            geminiModel={selectedGeminiModel}
+            onModelChange={setSelectedGeminiModel}
+          />
         </>
       ) : null}
 
       {(view === "running" || view === "complete") && ledger ? (
         <div className="flex flex-col gap-6">
-          <p className="text-[12px] uppercase tracking-[0.08em] text-[var(--text-muted)] font-mono">
-            {ledger.toProcess.length} files submitted for analysis
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-[12px] uppercase tracking-[0.08em] text-[var(--text-muted)] font-mono">
+              {ledger.toProcess.length} files submitted for analysis
+            </p>
+            {batchState ? (
+              <p className="text-[12px] text-[var(--text-muted)] font-mono">
+                {pipelineShortLabel(batchState.pipeline_mode)} · {modelLabel(configOptions, batchState.gemini_model)}
+              </p>
+            ) : null}
+          </div>
 
           {view === "running" && batchState ? (
             <ProgressHeader
@@ -310,9 +347,17 @@ export default function Page() {
             </div>
           ) : null}
 
-          {view === "complete" ? <ScoringPanel results={results} manifestRows={manifest.rows} /> : null}
+          {view === "complete" ? (
+            <ScoringPanel results={results} manifestRows={manifest.rows} pipelineMode={activePipelineMode} />
+          ) : null}
 
-          <ResultsTable results={results} manifestRows={manifest.rows} hasLabels={hasLabels} onSelect={setSelectedResult} />
+          <ResultsTable
+            results={results}
+            manifestRows={manifest.rows}
+            hasLabels={hasLabels}
+            pipelineMode={activePipelineMode}
+            onSelect={setSelectedResult}
+          />
         </div>
       ) : null}
 

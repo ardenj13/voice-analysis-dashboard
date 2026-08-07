@@ -1,3 +1,5 @@
+import type { ScoringResult } from "./scoring";
+
 export type EmotionalTone =
   | "neutral"
   | "satisfied"
@@ -28,12 +30,19 @@ export type FileStatus = "pending" | "processing" | "succeeded" | "failed";
 export interface FileResult {
   name: string; // original filename, with extension
   status: FileStatus;
-  prediction: Prediction | null;
+  prediction: Prediction | null; // primary — drives existing table/downloads
+  hybrid_prediction?: Prediction | null;
+  llm_full_prediction?: Prediction | null;
   error: { code: string; message: string } | null;
-  processing_ms: number | null;
+  processing_ms: Record<string, number> | null;
 }
 
 export type BatchStatus = "queued" | "running" | "completed" | "failed";
+
+// Known pipeline mode values. BatchState/ConfigOptions type these as plain
+// strings since they come from a backend-driven registry, but the frontend's
+// own display logic only knows how to handle these three.
+export type PipelineMode = "hybrid" | "llm_full" | "both";
 
 export interface BatchState {
   batch_id: string;
@@ -41,6 +50,25 @@ export interface BatchState {
   counts: { total: number; completed: number; failed: number };
   results: FileResult[];
   error?: string; // only when status === "failed"
+  pipeline_mode: string;
+  gemini_model: string;
+  scoring_hybrid?: ScoringResult | null;
+  scoring_llm_full?: ScoringResult | null;
+}
+
+export interface ModelOption {
+  id: string;
+  label: string;
+  estimated_cost_per_min: number;
+  notes: string;
+}
+
+export interface ConfigOptions {
+  pipeline_modes: string[];
+  default_pipeline_mode: string;
+  models: ModelOption[];
+  default_model: string;
+  cost_ceiling_per_min: number;
 }
 
 // Expected labels parsed from the manifest, held client-side only.

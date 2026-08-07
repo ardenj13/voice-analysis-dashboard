@@ -104,6 +104,16 @@ export default function ResultDrawer({
           </div>
         ) : null}
 
+        {result.processing_ms && Object.keys(result.processing_ms).length > 1 ? (
+          <div className="flex flex-col gap-1 text-[13px] font-mono text-[var(--text-muted)]">
+            {Object.entries(result.processing_ms).map(([pipeline, ms]) => (
+              <span key={pipeline}>
+                {pipeline}: {(ms / 1000).toFixed(1)}s
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <div>
           <button type="button" className="btn-secondary" onClick={handleCopy}>
             {copied ? "Copied" : "Copy JSON"}

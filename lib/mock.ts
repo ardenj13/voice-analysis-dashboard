@@ -2,6 +2,7 @@ import type {
   AudioQuality,
   BatchState,
   BatchStatus,
+  ConfigOptions,
   EmotionalIntensity,
   EmotionalTone,
   FileResult,
@@ -13,6 +14,39 @@ interface MockBatchInternal {
   batch_id: string;
   status: BatchStatus;
   files: FileResult[];
+  pipeline_mode: string;
+  gemini_model: string;
+}
+
+const CONFIG_OPTIONS: ConfigOptions = {
+  pipeline_modes: ["hybrid", "llm_full", "both"],
+  default_pipeline_mode: "hybrid",
+  models: [
+    {
+      id: "gemini-3.5-flash-lite",
+      label: "Gemini 3.5 Flash-Lite",
+      estimated_cost_per_min: 0.0012,
+      notes: "",
+    },
+    {
+      id: "gemini-2.5-flash-lite",
+      label: "Gemini 2.5 Flash-Lite",
+      estimated_cost_per_min: 0.0009,
+      notes: "Retiring soon — prefer 3.5 Flash-Lite for new batches.",
+    },
+    {
+      id: "gemini-3.5-flash",
+      label: "Gemini 3.5 Flash",
+      estimated_cost_per_min: 0.004,
+      notes: "",
+    },
+  ],
+  default_model: "gemini-3.5-flash-lite",
+  cost_ceiling_per_min: 0.01,
+};
+
+export function mockGetConfigOptions(): ConfigOptions {
+  return CONFIG_OPTIONS;
 }
 
 const TONES: EmotionalTone[] = ["neutral", "satisfied", "frustrated", "upset", "distressed"];
@@ -46,17 +80,23 @@ function makeId(): string {
   return `b_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function mockSubmitBatch(fileNames: string[]): { batch_id: string; status: BatchStatus; total_files: number } {
+export function mockSubmitBatch(
+  fileNames: string[],
+  pipelineMode: string,
+  geminiModel: string
+): { batch_id: string; status: BatchStatus; total_files: number } {
   const id = makeId();
   const files: FileResult[] = fileNames.map((name) => ({
     name,
     status: "pending",
     prediction: null,
+    hybrid_prediction: null,
+    llm_full_prediction: null,
     error: null,
     processing_ms: null,
   }));
   const status: BatchStatus = fileNames.length === 0 ? "completed" : "queued";
-  batches.set(id, { batch_id: id, status, files });
+  batches.set(id, { batch_id: id, status, files, pipeline_mode: pipelineMode, gemini_model: geminiModel });
 
   if (fileNames.length > 0) {
     const failIndex = Math.floor(Math.random() * fileNames.length);
@@ -81,11 +121,23 @@ function runMockProcessing(id: string, failIndex: number) {
       if (i - 1 === failIndex) {
         prevFile.status = "failed";
         prevFile.error = { code: "DECODE_FAILED", message: "Unsupported or corrupt audio stream" };
-        prevFile.processing_ms = Math.round(200 + Math.random() * 800);
+        prevFile.processing_ms = { total: Math.round(200 + Math.random() * 800) };
       } else {
         prevFile.status = "succeeded";
-        prevFile.prediction = randomPrediction();
-        prevFile.processing_ms = Math.round(400 + Math.random() * 2600);
+        if (current.pipeline_mode === "both") {
+          const hybrid = randomPrediction();
+          const llmFull = randomPrediction();
+          prevFile.hybrid_prediction = hybrid;
+          prevFile.llm_full_prediction = llmFull;
+          prevFile.prediction = hybrid;
+          prevFile.processing_ms = {
+            hybrid: Math.round(400 + Math.random() * 2600),
+            llm_full: Math.round(400 + Math.random() * 2600),
+          };
+        } else {
+          prevFile.prediction = randomPrediction();
+          prevFile.processing_ms = { [current.pipeline_mode]: Math.round(400 + Math.random() * 2600) };
+        }
       }
     }
 
@@ -112,10 +164,15 @@ export function mockGetBatch(batchId: string): BatchState {
     batch_id: batch.batch_id,
     status: batch.status,
     counts: { total: batch.files.length, completed, failed },
+    pipeline_mode: batch.pipeline_mode,
+    gemini_model: batch.gemini_model,
     results: batch.files.map((f) => ({
       ...f,
       prediction: f.prediction ? { ...f.prediction } : null,
+      hybrid_prediction: f.hybrid_prediction ? { ...f.hybrid_prediction } : f.hybrid_prediction ?? null,
+      llm_full_prediction: f.llm_full_prediction ? { ...f.llm_full_prediction } : f.llm_full_prediction ?? null,
       error: f.error ? { ...f.error } : null,
+      processing_ms: f.processing_ms ? { ...f.processing_ms } : null,
     })),
   };
 }

@@ -39,7 +39,13 @@ export interface ScoringResult {
   toneLabels: EmotionalTone[];
 }
 
-export function computeScoring(results: FileResult[], manifestRows: ManifestRow[]): ScoringResult | null {
+export type PredictionSource = "prediction" | "hybrid_prediction" | "llm_full_prediction";
+
+export function computeScoring(
+  results: FileResult[],
+  manifestRows: ManifestRow[],
+  source: PredictionSource = "prediction"
+): ScoringResult | null {
   const expectedByName = new Map<string, Prediction>();
   for (const row of manifestRows) {
     if (row.expected) expectedByName.set(row.name, row.expected);
@@ -49,14 +55,14 @@ export function computeScoring(results: FileResult[], manifestRows: ManifestRow[
 
   const totalWithResults = results.length;
   const scored = results.filter(
-    (r) => r.status === "succeeded" && r.prediction && expectedByName.has(r.name)
+    (r) => r.status === "succeeded" && r[source] && expectedByName.has(r.name)
   );
 
   const fieldAccuracy: FieldAccuracy[] = SCORED_FIELDS.map((field) => {
     let correct = 0;
     for (const r of scored) {
       const expected = expectedByName.get(r.name)!;
-      if (expected[field] === r.prediction![field]) correct++;
+      if (expected[field] === r[source]![field]) correct++;
     }
     return { field, correct, total: scored.length, pct: scored.length ? correct / scored.length : 0 };
   });
@@ -64,8 +70,8 @@ export function computeScoring(results: FileResult[], manifestRows: ManifestRow[
   let confidenceErrSum = 0;
   for (const r of scored) {
     const expected = expectedByName.get(r.name)!;
-    const allCorrect = SCORED_FIELDS.every((f) => expected[f] === r.prediction![f]);
-    confidenceErrSum += Math.abs(r.prediction!.confidence - (allCorrect ? 1 : 0));
+    const allCorrect = SCORED_FIELDS.every((f) => expected[f] === r[source]![f]);
+    confidenceErrSum += Math.abs(r[source]!.confidence - (allCorrect ? 1 : 0));
   }
   const confidenceMae = scored.length ? confidenceErrSum / scored.length : 0;
 
@@ -73,7 +79,7 @@ export function computeScoring(results: FileResult[], manifestRows: ManifestRow[
   for (const r of scored) {
     const expected = expectedByName.get(r.name)!;
     const ai = TONES.indexOf(expected.emotional_tone);
-    const pi = TONES.indexOf(r.prediction!.emotional_tone);
+    const pi = TONES.indexOf(r[source]!.emotional_tone);
     if (ai >= 0 && pi >= 0) matrix[ai][pi]++;
   }
 

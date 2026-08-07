@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { LedgerEntry, LedgerGroups, LedgerModel } from "@/lib/validate";
+import type { ConfigOptions } from "@/lib/types";
+import RunSettings from "./RunSettings";
 
 const GROUPS: { key: keyof LedgerGroups; label: string }[] = [
   { key: "matched", label: "Matched" },
@@ -22,11 +24,21 @@ export default function PreflightLedger({
   onRun,
   onClear,
   submitting,
+  configOptions,
+  pipelineMode,
+  onPipelineModeChange,
+  geminiModel,
+  onModelChange,
 }: {
   ledger: LedgerModel;
   onRun: () => void;
   onClear: () => void;
   submitting: boolean;
+  configOptions: ConfigOptions | null;
+  pipelineMode: string;
+  onPipelineModeChange: (mode: string) => void;
+  geminiModel: string;
+  onModelChange: (id: string) => void;
 }) {
   const hasWarnings =
     ledger.counts.missingAudio +
@@ -72,6 +84,15 @@ export default function PreflightLedger({
           />
         ) : null}
       </div>
+
+      <RunSettings
+        configOptions={configOptions}
+        pipelineMode={pipelineMode}
+        onPipelineModeChange={onPipelineModeChange}
+        geminiModel={geminiModel}
+        onModelChange={onModelChange}
+        totalBytes={ledger.toProcess.reduce((sum, f) => sum + f.size, 0)}
+      />
 
       <div className="flex flex-wrap items-center gap-4">
         <button type="button" className="btn-primary" disabled={blocked || submitting} onClick={onRun}>
