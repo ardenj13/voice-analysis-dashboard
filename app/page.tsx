@@ -343,18 +343,18 @@ export default function Page() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => downloadResultsCsv(results, batchState.batch_id)}
+                onClick={() => downloadResultsCsv(results, batchState.batch_id, activePipelineMode)}
                 disabled={results.every((r) => r.status !== "succeeded" && r.status !== "failed")}
               >
-                Download CSV
+                {activePipelineMode === "both" ? "Download CSV (2 files)" : "Download CSV"}
               </button>
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => downloadResultsJson(results, batchState.batch_id)}
+                onClick={() => downloadResultsJson(results, batchState.batch_id, activePipelineMode)}
                 disabled={results.every((r) => r.status !== "succeeded" && r.status !== "failed")}
               >
-                Download JSON
+                {activePipelineMode === "both" ? "Download JSON (2 files)" : "Download JSON"}
               </button>
               <button type="button" className="btn-secondary" onClick={resetAll}>
                 Clear batch

@@ -1,4 +1,5 @@
-import type { FileResult } from "./types";
+import type { PredictionSource } from "./scoring";
+import type { FileResult, PipelineMode } from "./types";
 
 const CSV_COLUMNS = [
   "name",
@@ -25,10 +26,10 @@ function csvField(value: string): string {
   return value;
 }
 
-export function resultsToCsv(results: FileResult[]): string {
+export function resultsToCsv(results: FileResult[], source: PredictionSource = "prediction"): string {
   const lines = [CSV_COLUMNS.join(",")];
   for (const r of results) {
-    const p = r.prediction;
+    const p = r[source] ?? null;
     const row: CsvRow = {
       name: r.name,
       status: r.status,
@@ -49,9 +50,9 @@ export function resultsToCsv(results: FileResult[]): string {
   return lines.join("\r\n");
 }
 
-export function resultsToJson(results: FileResult[]): string {
+export function resultsToJson(results: FileResult[], source: PredictionSource = "prediction"): string {
   return JSON.stringify(
-    results.map((r) => ({ name: r.name, status: r.status, result: r.prediction, error: r.error })),
+    results.map((r) => ({ name: r.name, status: r.status, result: r[source] ?? null, error: r.error })),
     null,
     2
   );
@@ -69,10 +70,36 @@ function downloadBlob(content: string, mime: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function downloadResultsCsv(results: FileResult[], batchId: string) {
-  downloadBlob(resultsToCsv(results), "text/csv;charset=utf-8", `results_${batchId}.csv`);
+// In "both" mode each pipeline gets its own file — a single export keyed on
+// `prediction` would silently ship hybrid only, since the backend sets
+// primary=hybrid whenever both ran. Chrome throttles back-to-back programmatic
+// downloads, so the second is nudged past the first rather than fired in the
+// same tick.
+const SECOND_DOWNLOAD_DELAY_MS = 400;
+
+function downloadPerPipeline(
+  results: FileResult[],
+  batchId: string,
+  pipelineMode: PipelineMode,
+  ext: "csv" | "json",
+  mime: string,
+  render: (results: FileResult[], source: PredictionSource) => string
+) {
+  if (pipelineMode !== "both") {
+    downloadBlob(render(results, "prediction"), mime, `results_${batchId}.${ext}`);
+    return;
+  }
+
+  downloadBlob(render(results, "hybrid_prediction"), mime, `results_${batchId}_hybrid.${ext}`);
+  setTimeout(() => {
+    downloadBlob(render(results, "llm_full_prediction"), mime, `results_${batchId}_llm_full.${ext}`);
+  }, SECOND_DOWNLOAD_DELAY_MS);
 }
 
-export function downloadResultsJson(results: FileResult[], batchId: string) {
-  downloadBlob(resultsToJson(results), "application/json", `results_${batchId}.json`);
+export function downloadResultsCsv(results: FileResult[], batchId: string, pipelineMode: PipelineMode = "hybrid") {
+  downloadPerPipeline(results, batchId, pipelineMode, "csv", "text/csv;charset=utf-8", resultsToCsv);
+}
+
+export function downloadResultsJson(results: FileResult[], batchId: string, pipelineMode: PipelineMode = "hybrid") {
+  downloadPerPipeline(results, batchId, pipelineMode, "json", "application/json", resultsToJson);
 }
