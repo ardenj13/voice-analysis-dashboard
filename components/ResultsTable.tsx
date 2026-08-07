@@ -255,7 +255,7 @@ export default function ResultsTable({ results, manifestRows, hasLabels, pipelin
                       })
                     ) : (
                       <td className="px-[14px] py-[12px] text-[var(--text-faint)]" colSpan={PREDICTION_COLSPAN}>
-                        {r.status}
+                        {r.status === "succeeded" ? "no prediction returned for this pipeline" : r.status}
                       </td>
                     )
                   ) : pred ? (

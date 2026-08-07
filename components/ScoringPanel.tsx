@@ -9,6 +9,19 @@ function meanFieldAccuracyPct(scoring: ScoringResult): number {
   return (scoring.fieldAccuracy.reduce((sum, f) => sum + f.pct, 0) / scoring.fieldAccuracy.length) * 100;
 }
 
+// A pipeline that produced no predictions at all scores 0/0 on every field,
+// which renders identically to a pipeline that got everything wrong. Callers
+// use this to say "unavailable" instead of a wall of 0%.
+function hasNoPredictions(scoring: ScoringResult): boolean {
+  return scoring.scoredCount === 0;
+}
+
+function summaryFor(label: string, scoring: ScoringResult): string {
+  return hasNoPredictions(scoring)
+    ? `${label}: no predictions returned`
+    : `${label}: ${meanFieldAccuracyPct(scoring).toFixed(0)}% mean field accuracy`;
+}
+
 export default function ScoringPanel({
   results,
   manifestRows,
@@ -26,8 +39,8 @@ export default function ScoringPanel({
     return (
       <section className="flex flex-col gap-4">
         <p className="text-[13px] text-[var(--text-muted)] font-mono">
-          Scored on {scoringHybrid.scoredCount} files. Hybrid: {meanFieldAccuracyPct(scoringHybrid).toFixed(0)}% mean
-          field accuracy. Full LLM: {meanFieldAccuracyPct(scoringLlmFull).toFixed(0)}% mean field accuracy.
+          Scored on {Math.max(scoringHybrid.scoredCount, scoringLlmFull.scoredCount)} files.{" "}
+          {summaryFor("Hybrid", scoringHybrid)}. {summaryFor("Full LLM", scoringLlmFull)}.
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ScoringPanelBody title="Hybrid" scoring={scoringHybrid} stackedInner />
@@ -63,6 +76,14 @@ function ScoringPanelBody({
           {unlabelled > 0 ? ` ${unlabelled} file${unlabelled === 1 ? "" : "s"} had no label.` : ""}
         </p>
       </div>
+
+      {hasNoPredictions(scoring) ? (
+        <p className="text-[13px] text-[var(--warn)]">
+          This pipeline returned no predictions for any file, so there is nothing to score. Check the run&apos;s Gemini
+          model — an unreachable model fails every call and leaves this leg empty. These are not 0% accuracy results.
+        </p>
+      ) : (
+        <>
 
       <div className={`grid grid-cols-1 gap-6 ${stackedInner ? "" : "lg:grid-cols-2"}`}>
         <div>
@@ -122,6 +143,8 @@ function ScoringPanelBody({
         </h3>
         <ConfusionMatrix matrix={scoring.confusionMatrix} labels={scoring.toneLabels} />
       </div>
+        </>
+      )}
     </section>
   );
 }
