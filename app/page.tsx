@@ -249,7 +249,7 @@ export default function Page() {
     schedulePoll(batchIdRef.current, POLL_FAST_MS);
   }, [schedulePoll]);
 
-  const results = batchState?.results ?? [];
+  const results = batchState?.files ?? [];
   const hasLabels = manifest.rows.some((r) => r.expected !== null);
   const activePipelineMode = (batchState?.pipeline_mode as PipelineMode | undefined) ?? "hybrid";
 

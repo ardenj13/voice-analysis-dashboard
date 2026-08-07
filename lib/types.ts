@@ -25,7 +25,9 @@ export interface Prediction {
   confidence: number; // 0.0 - 1.0
 }
 
-export type FileStatus = "pending" | "processing" | "succeeded" | "failed";
+// Mirrors app/schemas.py FileStatus — the backend writes these exact strings
+// into batch_files.status, and ResultsTable renders them verbatim.
+export type FileStatus = "queued" | "running" | "succeeded" | "failed";
 
 export interface FileResult {
   name: string; // original filename, with extension
@@ -48,7 +50,7 @@ export interface BatchState {
   batch_id: string;
   status: BatchStatus;
   counts: { total: number; completed: number; failed: number };
-  results: FileResult[];
+  files: FileResult[]; // key name is the backend's — see JobStore.get_batch_state
   error?: string; // only when status === "failed"
   pipeline_mode: string;
   gemini_model: string;

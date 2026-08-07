@@ -92,7 +92,7 @@ export function mockSubmitBatch(
   const id = makeId();
   const files: FileResult[] = fileNames.map((name) => ({
     name,
-    status: "pending",
+    status: "queued",
     prediction: null,
     hybrid_prediction: null,
     llm_full_prediction: null,
@@ -146,7 +146,7 @@ function runMockProcessing(id: string, failIndex: number) {
     }
 
     if (i < current.files.length) {
-      current.files[i].status = "processing";
+      current.files[i].status = "running";
       i += 1;
       setTimeout(step, 700);
     } else {
@@ -170,7 +170,7 @@ export function mockGetBatch(batchId: string): BatchState {
     counts: { total: batch.files.length, completed, failed },
     pipeline_mode: batch.pipeline_mode,
     gemini_model: batch.gemini_model,
-    results: batch.files.map((f) => ({
+    files: batch.files.map((f) => ({
       ...f,
       prediction: f.prediction ? { ...f.prediction } : null,
       hybrid_prediction: f.hybrid_prediction ? { ...f.hybrid_prediction } : f.hybrid_prediction ?? null,
