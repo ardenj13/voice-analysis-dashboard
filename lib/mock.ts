@@ -49,6 +49,10 @@ export function mockGetConfigOptions(): ConfigOptions {
   return CONFIG_OPTIONS;
 }
 
+export function mockLogin(): string {
+  return `mock-token-${Date.now().toString(36)}`;
+}
+
 const TONES: EmotionalTone[] = ["neutral", "satisfied", "frustrated", "upset", "distressed"];
 const INTENSITIES: EmotionalIntensity[] = ["low", "medium", "high"];
 const NOISE_SEVERITIES: NoiseSeverity[] = ["low", "medium", "high"];

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import DropZone from "@/components/DropZone";
+import LoginScreen from "@/components/LoginScreen";
 import PreflightLedger from "@/components/PreflightLedger";
 import ProgressHeader from "@/components/ProgressHeader";
 import ResultsTable from "@/components/ResultsTable";
@@ -10,7 +11,7 @@ import ScoringPanel from "@/components/ScoringPanel";
 import { extractDataTransfer, extractFileList, extractZip, type ExtractedBatch } from "@/lib/archive";
 import { parseManifest, type ParsedManifest } from "@/lib/manifest";
 import { buildLedger, type LedgerModel } from "@/lib/validate";
-import { getBatch, getConfigOptions, submitBatch } from "@/lib/api";
+import { getBatch, getConfigOptions, isAuthenticated, submitBatch } from "@/lib/api";
 import { downloadResultsCsv, downloadResultsJson } from "@/lib/download";
 import type { BatchState, ConfigOptions, FileResult, PipelineMode } from "@/lib/types";
 import { modelLabel, pipelineShortLabel } from "@/components/RunSettings";
@@ -41,6 +42,8 @@ export default function Page() {
   const [configOptions, setConfigOptions] = useState<ConfigOptions | null>(null);
   const [selectedPipelineMode, setSelectedPipelineMode] = useState("");
   const [selectedGeminiModel, setSelectedGeminiModel] = useState("");
+
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   const batchIdRef = useRef<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +100,10 @@ export default function Page() {
   useEffect(() => {
     schedulePollRef.current = schedulePoll;
   }, [schedulePoll]);
+
+  useEffect(() => {
+    setAuthed(isAuthenticated());
+  }, []);
 
   useEffect(() => {
     getConfigOptions()
@@ -245,6 +252,14 @@ export default function Page() {
   const results = batchState?.results ?? [];
   const hasLabels = manifest.rows.some((r) => r.expected !== null);
   const activePipelineMode = (batchState?.pipeline_mode as PipelineMode | undefined) ?? "hybrid";
+
+  if (authed === null) {
+    return null;
+  }
+
+  if (!authed) {
+    return <LoginScreen onSuccess={() => setAuthed(true)} />;
+  }
 
   return (
     <main className="max-w-[1200px] mx-auto px-8 py-12 flex flex-col gap-8">
